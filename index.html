@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#17365d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg" type="image/svg+xml">
+<title>نظام حضور QR - الفيزياء الطبية</title>
+<style>
+:root{--navy:#17365d;--blue:#235b91;--bg:#f4f7fb;--green:#1e7a46;--red:#a52a2a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,Tahoma,sans-serif;color:#182433}
+header{background:var(--navy);color:#fff;padding:18px 16px}h1{font-size:21px;margin:0 0 6px}header p{margin:0;font-size:13px;opacity:.9}
+main{max-width:920px;margin:16px auto;padding:0 12px}.panel{background:#fff;border:1px solid #dbe3ed;border-radius:14px;padding:15px;margin-bottom:13px;box-shadow:0 2px 8px #12243a0b}
+label{display:block;font-weight:700;margin:8px 0 5px}input,select,button{font:inherit;border-radius:9px;padding:11px;border:1px solid #b9c6d5;width:100%;background:white}
+button{background:var(--blue);color:white;border:0;font-weight:700;cursor:pointer;margin-top:8px}button.secondary{background:#e8eef5;color:#17365d}button.danger{background:#8d2525}
+.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.stat{background:#eef4fa;padding:12px;border-radius:10px;text-align:center}.stat b{display:block;font-size:22px;color:var(--navy)}
+#video{width:100%;max-height:330px;background:#111;border-radius:10px;display:none;margin-top:10px}#status{padding:10px;border-radius:9px;background:#eef4fa;margin-top:10px;white-space:pre-wrap}.ok{background:#e4f6e9!important;color:#14552c}.bad{background:#fde8e8!important;color:#852323}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #e4eaf0;text-align:right}th{background:#edf2f7}
+.scroll{overflow:auto;max-height:320px}.muted{font-size:12px;color:#56677a;line-height:1.7}.hidden{display:none!important}.csv-picker{display:block!important;visibility:visible!important;opacity:1!important;position:static!important;width:100%;min-height:52px;margin-top:8px;padding:12px;background:#f7f9fc;border:1px solid #b9c6d5;border-radius:9px;color:#182433}
+.csv-direct-button{display:block;text-align:center;background:var(--blue);color:#fff;padding:14px;border-radius:9px;margin-top:8px;cursor:pointer}
+@media(max-width:560px){.row{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,1fr)}h1{font-size:18px}}
+</style>
+</head>
+<body>
+<header><h1>نظام حضور QR — قسم الفيزياء الطبية</h1><p>المرحلة الرابعة • 2026–2027 • يعمل محلياً دون إرسال البيانات إلى الإنترنت</p></header>
+<main>
+<div class="panel">
+ <div class="row">
+  <div><label for="course">المادة</label><input id="course" placeholder="مثال: فيزياء العلاج الإشعاعي"></div>
+  <div><label for="kind">نوع الدرس</label><select id="kind"><option>نظري</option><option>مختبر</option></select></div>
+  <div><label for="date">تاريخ المحاضرة</label><input id="date" type="date"></div>
+  <div><label for="session">رقم/عنوان المحاضرة</label><input id="session" placeholder="مثال: المحاضرة 1"></div>
+ </div>
+ <button id="start">بدء جلسة الحضور</button>
+ <label for="rosterFile" class="csv-direct-button">اختيار ملف CSV من الآيفون</label>
+ <input id="rosterFile" type="file" accept=".csv,text/csv,application/vnd.ms-excel" class="csv-picker">
+ <div class="muted">استورد قائمة الطلبة من ملف CSV مرة واحدة على كل جهاز. تبقى القائمة محفوظة محلياً ولا تُرفع إلى GitHub.</div>
+ <div class="muted">كل جلسة تُعرّف بالمادة ونوع الدرس والتاريخ والعنوان. لا يمكن تكرار الطالب داخل الجلسة نفسها.</div>
+</div>
+<div class="panel">
+ <h3 style="margin-top:0">تسجيل الحضور</h3>
+ <button id="scan">تشغيل الكاميرا ومسح QR</button>
+ <video id="video" playsinline></video>
+ <div id="cameraNote" class="muted">
+ <b>المسح المباشر:</b> افتح التطبيق من رابط HTTPS بعد التجهيز الأولي، اسمح باستخدام الكاميرا، ثم وجّهها إلى بطاقة الطالب. لا حاجة إلى نسخ ولصق.
+ <b>مهم:</b> يحتاج فتح التطبيق وتجهيزه أول مرة إلى الإنترنت. بعد ظهور رسالة الجاهزية وتثبيته على الشاشة الرئيسية، جرّب تشغيله دون إنترنت.
+ </div>
+ <label for="payload">محتوى QR / الرمز التعريفي</label><input id="payload" autocomplete="off" autocapitalize="off" placeholder="الصق هنا النص المقروء من QR">
+ <div class="muted">هذا الحقل بديل احتياطي فقط؛ التسجيل الأساسي يتم مباشرةً عند قراءة الكاميرا للرمز.</div>
+ <button id="addPayload">تسجيل من الرمز</button>
+ <label for="search">بحث عن الطالب (بديل احتياطي)</label><input id="search" placeholder="اكتب الاسم أو الرقم التعريفي">
+ <div id="matches"></div>
+ <div id="status" role="status">اختر بيانات المحاضرة ثم اضغط «بدء جلسة الحضور».</div>
+</div>
+<div class="panel">
+ <h3 style="margin-top:0">ملخص الجلسة الحالية</h3>
+ <div class="stats"><div class="stat"><b id="present">0</b>حضور</div><div class="stat"><b id="absent">0</b>غياب</div><div class="stat"><b id="total">0</b>إجمالي الطلبة</div></div>
+ <div class="row"><button id="exportCsv">تصدير تقرير Excel (CSV)</button><button id="exportAll" class="secondary">تصدير نسخة احتياطية</button></div>
+ <div class="row"><button id="importAll" class="secondary">استيراد نسخة احتياطية</button><button id="exportRoster" class="secondary">تصدير قائمة الطلبة</button></div>
+ <input id="importFile" type="file" accept=".json,application/json" class="hidden">
+ <div class="muted">ملفات CSV تُفتح ببرنامج Excel. النسخة الاحتياطية تنقل سجلات الجلسات بين اللابتوب والآيفون يدوياً؛ لا يوجد مزامنة تلقائية بين جهازين وهما غير متصلين.</div>
+</div>
+<div class="panel">
+ <div class="row" style="align-items:center"><h3 style="margin:0">سجل الحضور المسجل</h3><button id="clearSession" class="danger">مسح جلسة الحضور الحالية</button></div>
+ <div class="scroll"><table><thead><tr><th>الطالب</th><th>المعرّف</th><th>الوقت</th><th>الإجراء</th></tr></thead><tbody id="records"><tr><td colspan="4">لا توجد سجلات بعد.</td></tr></tbody></table></div>
+</div>
+<div class="panel muted">
+ <b>تنبيه مهم بشأن قائمة الطلبة:</b> عنوان ورقة البيانات الأصلية في ملف Excel المرفق يشير إلى «المرحلة الثالثة — الفصل الدراسي الأول — 2025–2026»، وليس المرحلة الرابعة 2026–2027. أُدرجت الأسماء المستخرجة من الملف كما هو؛ يرجى تأكيد أن القائمة صحيحة قبل اعتماد النظام رسمياً.
+ <br><br><b>حدود التحقق:</b> QR الثابت يعرّف الطالب لكنه لا يثبت وحده أن حامل البطاقة هو الطالب نفسه. الأفضل أن يمسح التدريسي بطاقة الطالب بحضوره. حفظ البيانات محلي على كل جهاز؛ صدّر نسخة احتياطية واستوردها لنقل السجلات.
+</div>
+</main>
+<script type="module">
+// Register offline support without blocking the app or its CSV import handlers.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js?v=qr-match-fix-3')
+    .catch(err => console.error('Service Worker registration failed:', err));
+}
+// Load the QR decoder independently; CSV import remains available if QR loading fails.
+const qrScript = document.createElement('script');
+qrScript.src = './jsQR.js';
+qrScript.onload = () => console.log('QR library loaded');
+qrScript.onerror = () => {
+  const st = document.getElementById('status');
+  if (st) {
+    st.textContent = 'تعذر تحميل مكتبة QR. تحقق من وجود الملف jsQR.js في المجلد الرئيسي للمستودع.';
+    st.className = 'bad';
+  }
+};
+document.head.appendChild(qrScript);
+let students = load('qr_attendance_roster', []);
+let byQR = new Map(students.map(s=>[s.qr,s]));
+let byId = new Map(students.map(s=>[s.student_id,s]));
+let sessions = load('qr_attendance_sessions',[]);
+let activeKey = null, stream=null, scanning=false, lastPayload='', lastAt=0, lastCodeSeenAt=0, scanCanvas=null, scanContext=null;
+const $=id=>document.getElementById(id);
+$('date').value=new Date().toLocaleDateString('en-CA');
+function load(k,d){try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}}
+function save(){localStorage.setItem('qr_attendance_sessions',JSON.stringify(sessions))}
+function current(){return sessions.find(s=>s.key===activeKey)}
+function makeKey(){return [$('date').value,$('course').value.trim(),$('kind').value,$('session').value.trim()].join('|')}
+function msg(t,kind=''){ $('status').textContent=t;$('status').className=kind}
+function startSession(){
+ if(!$('date').value||!$('course').value.trim()){msg('أدخل تاريخ المحاضرة واسم المادة أولاً.','bad');return}
+ const key=makeKey(); let s=sessions.find(x=>x.key===key);
+ if(!s){s={key,date:$('date').value,course:$('course').value.trim(),kind:$('kind').value,session:$('session').value.trim(),records:[]};sessions.push(s);save()}
+ activeKey=key; render(); msg('بدأت جلسة الحضور: '+s.course+' — '+s.kind+' — '+s.date,'ok')
+}
+function normalizeText(p){
+  return String(p||'').normalize('NFKC')
+    .replace(/[\u200B-\u200F\uFEFF\u2060]/g,'')
+    .replace(/[‐‑‒–—−]/g,'-')
+    .replace(/[\r\n\t]+/g,' ').trim();
+}
+function normalizeId(p){
+  return normalizeText(p).toUpperCase().replace(/[\s_]/g,'').replace(/[^A-Z0-9-]/g,'');
+}
+function parsePayload(p){
+  p=normalizeText(p);
+  if(!p)return null;
+  // Exact full payload, after harmless Unicode/whitespace normalization.
+  const exact=students.find(st=>normalizeText(st.qr)===p);
+  if(exact)return exact;
+  // The QR may contain the student ID alone or embedded in a larger payload.
+  const idMatch=p.match(/ST4\s*[-_ ]?\s*2026\s*[-_ ]?\s*2027\s*[-_ ]?\s*0*(\d{1,3})/i);
+  if(idMatch){
+    const id='ST4-2026-2027-'+String(Number(idMatch[1])).padStart(3,'0');
+    const hit=byId.get(id) || students.find(st=>normalizeId(st.student_id)===normalizeId(id));
+    if(hit)return hit;
+  }
+  const parts=p.split(/[|;,\n\r]+/).map(x=>normalizeText(x));
+  for(const part of parts){
+    if(byId.has(part))return byId.get(part);
+    const id=normalizeId(part);
+    const hit=students.find(st=>normalizeId(st.student_id)===id);
+    if(hit)return hit;
+  }
+  const folded=p.toLocaleLowerCase().replace(/\s+/g,' ');
+  const byName=students.find(st=>normalizeText(st.name).toLocaleLowerCase()===folded);
+  if(byName)return byName;
+  return null;
+}
+
+// Lightweight scan feedback: short high beep for success, two lower beeps for duplicates.
+let attendanceAudioContext = null;
+function playAttendanceBeep(kind='success'){
+  try{
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if(!AudioCtx) return;
+    if(!attendanceAudioContext) attendanceAudioContext = new AudioCtx();
+    if(attendanceAudioContext.state === 'suspended') attendanceAudioContext.resume();
+    const ctx = attendanceAudioContext;
+    const beep = (frequency, start, duration) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.12, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(start); osc.stop(start + duration + 0.01);
+    };
+    const now = ctx.currentTime;
+    if(kind === 'duplicate'){
+      beep(440, now, 0.09);
+      beep(440, now + 0.14, 0.09);
+    }else{
+      beep(880, now, 0.11);
+    }
+  }catch(e){ /* Audio is optional; scanning must continue if sound is unavailable. */ }
+}
+
+function addStudent(st){
+ const s=current(); if(!s){msg('ابدأ جلسة الحضور أولاً.','bad');return}
+ if(!st){msg('لم يُعثر على الطالب. تأكد من الرمز أو استخدم البحث.','bad');return}
+ if(s.records.some(r=>r.student_id===st.student_id)){msg('مرفوض: '+st.name+' مسجل مسبقاً في هذه الجلسة.','bad');playAttendanceBeep('duplicate');return}
+ const now=new Date();s.records.push({student_id:st.student_id,name:st.name,time:now.toLocaleTimeString('en-GB'),timestamp:now.toISOString()});save();render();
+ msg('تم تسجيل الحضور: '+st.name+' ('+st.student_id+')','ok');playAttendanceBeep('success');$('payload').value='';$('search').value='';$('matches').innerHTML=''
+}
+function render(){
+ const s=current(), rec=s?s.records:[], ids=new Set(rec.map(r=>r.student_id));
+ $('present').textContent=rec.length;$('absent').textContent=students.length-rec.length;$('total').textContent=students.length;
+ $('records').innerHTML=rec.length?rec.slice().reverse().map((r,i)=>`<tr><td>${esc(r.name)}</td><td>${esc(r.student_id)}</td><td>${esc(r.time)}</td><td><button class="danger" style="margin:0;padding:5px" data-remove="${r.student_id}">حذف</button></td></tr>`).join(''):'<tr><td colspan="4">لا توجد سجلات بعد.</td></tr>';
+ $('records').querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{const s=current();s.records=s.records.filter(r=>r.student_id!==b.dataset.remove);save();render();msg('تم حذف سجل الحضور المحدد.')});
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+$('start').onclick=startSession;
+// On iPhone Safari, use the visible native file input instead of programmatically calling input.click().
+function readLocalFile(file){
+ return new Promise((resolve,reject)=>{
+  if(window.FileReader){
+   const reader=new FileReader();
+   reader.onload=()=>resolve(String(reader.result||''));
+   reader.onerror=()=>reject(new Error('تعذرت قراءة الملف من جهازك'));
+   reader.readAsText(file,'UTF-8');
+  }else if(typeof file.text==='function'){
+   file.text().then(resolve,reject);
+  }else reject(new Error('المتصفح لا يدعم قراءة هذا الملف'));
+ });
+}
+$('rosterFile').addEventListener('change', async e=>{
+ const file=e.target.files&&e.target.files[0];
+ if(!file){msg('لم يتم اختيار ملف CSV.','bad');return;}
+ msg('تم اختيار '+file.name+'؛ جارٍ قراءة القائمة...');
+ try{
+  const text=await readLocalFile(file);
+  const rows=parseCSV(text);
+  if(rows.length<2)throw new Error('الملف فارغ أو لا يحتوي صفوف طلبة');
+  const headers=rows[0].map(h=>String(h).replace(/^\uFEFF/,'').trim().toLowerCase().replace(/[\s-]+/g,'_'));
+  const pick=(row,names)=>{for(const n of names){const i=headers.indexOf(n);if(i>=0&&row[i]!=null)return String(row[i]).trim()}return ''};
+  const imported=rows.slice(1).map((r,i)=>{
+   const number=pick(r,['number','student_no','student_number','no'])||String(i+1);
+   const name=pick(r,['name','student_name','fullname','full_name']);
+   const student_id=pick(r,['student_id','studentid','id','university_id']);
+   let qr=pick(r,['qr','qr_payload','payload']);
+   if(!qr&&student_id)qr='MEDPHY|'+student_id+'|'+name;
+   return {number:Number(number)||i+1,name,student_id,qr};
+  }).filter(x=>x.name&&x.student_id);
+  if(!imported.length)throw new Error('لم أجد أعمدة الاسم والرقم الجامعي. الأعمدة المقروءة: '+headers.join(', '));
+  const ids=new Set(); for(const st of imported){if(ids.has(st.student_id))throw new Error('الرقم الجامعي مكرر: '+st.student_id);ids.add(st.student_id)}
+  students=imported; byQR=new Map(students.map(st=>[st.qr,st])); byId=new Map(students.map(st=>[st.student_id,st]));
+  localStorage.setItem('qr_attendance_roster',JSON.stringify(students));
+  render(); msg('تم تحميل وحفظ قائمة الطلبة محلياً: '+students.length+' طالباً. لن تُرفع القائمة إلى GitHub.','ok');
+ }catch(err){msg('فشل استيراد CSV: '+(err&&err.message?err.message:'خطأ غير معروف')+'. تأكد من اختيار ملف CSV الصحيح.','bad')}
+});
+function parseCSV(text){
+ text=String(text||'').replace(/^\uFEFF/,''); const firstLine=(text.split(/\r?\n/,1)[0]||''); const commas=(firstLine.match(/,/g)||[]).length, semis=(firstLine.match(/;/g)||[]).length; const delimiter=semis>commas?';':','; const out=[]; let row=[],field='',quoted=false;
+ for(let i=0;i<text.length;i++){const c=text[i];if(quoted){if(c==='"'&&text[i+1]==='"'){field+='"';i++}else if(c==='"')quoted=false;else field+=c}else{if(c==='"')quoted=true;else if(c===delimiter){row.push(field);field=''}else if(c==='\n'){row.push(field);out.push(row);row=[];field=''}else if(c!=='\r')field+=c}}
+ if(field.length||row.length){row.push(field);out.push(row)} return out;
+}
+$('addPayload').onclick=()=>addStudent(parsePayload($('payload').value));
+// A QR scanner that behaves like a keyboard can send the code here; pasted scans register automatically.
+let pasteTimer=null;
+$('payload').addEventListener('paste',()=>{
+ clearTimeout(pasteTimer);
+ pasteTimer=setTimeout(()=>{
+   const raw=$('payload').value;
+   if(raw.trim()) addStudent(parsePayload(raw));
+ },120);
+});
+$('payload').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addStudent(parsePayload($('payload').value))}});
+$('search').addEventListener('input',()=>{
+ const q=$('search').value.trim().toLowerCase(); if(!q){$('matches').innerHTML='';return}
+ const hits=students.filter(s=>s.name.toLowerCase().includes(q)||s.student_id.toLowerCase().includes(q)).slice(0,12);
+ $('matches').innerHTML=hits.map(s=>`<button class="secondary" data-id="${s.student_id}" style="text-align:right">${esc(s.name)} — ${s.student_id}</button>`).join('');
+ $('matches').querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>addStudent(byId.get(b.dataset.id)))
+});
+$('scan').onclick=async()=>{
+ if(scanning){stopScan();return}
+ if(!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){msg('افتح التطبيق من رابط HTTPS أو من أيقونته المثبتة على الشاشة الرئيسية، وليس كملف HTML محلي.','bad');return}
+ if(typeof window.jsQR!=='function'){msg('لم تكتمل تهيئة قارئ QR. افتح التطبيق مرة واحدة مع الإنترنت ثم أعد المحاولة.','bad');return}
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+  $('video').srcObject=stream;$('video').style.display='block';await $('video').play();
+  let canvas=document.getElementById('scanCanvas');if(!canvas){canvas=document.createElement('canvas');canvas.id='scanCanvas';canvas.className='hidden';document.body.appendChild(canvas)}
+  scanCanvas=canvas;scanContext=canvas.getContext('2d',{willReadFrequently:true});scanning=true;$('scan').textContent='إيقاف الكاميرا';msg('الكاميرا تعمل. وجّهها إلى QR الطالب.','ok');scanFrame()
+ }catch(e){msg('تعذر تشغيل الكاميرا. تأكد من السماح للمتصفح باستخدامها وافتح التطبيق عبر HTTPS.','bad');stopScan()}
+};
+async function scanFrame(){
+ if(!scanning)return;
+ try{
+  const video=$('video');if(video.readyState>=2){const w=video.videoWidth,h=video.videoHeight;if(w&&h){if(scanCanvas.width!==w||scanCanvas.height!==h){scanCanvas.width=w;scanCanvas.height=h}scanContext.drawImage(video,0,0,w,h);const frame=scanContext.getImageData(0,0,w,h);const code=window.jsQR(frame.data,w,h,{inversionAttempts:'attemptBoth'});if(code&&code.data){const raw=code.data;const now=Date.now();lastCodeSeenAt=now;if(raw!==lastPayload||now-lastAt>1200){lastPayload=raw;lastAt=now;const st=parsePayload(raw);if(st){$('payload').value=raw;addStudent(st)}else{msg('الرمز مقروء لكنه لا يطابق أي طالب في القائمة.','bad')}}}else if(lastPayload&&Date.now()-lastCodeSeenAt>900){lastPayload=''}}}
+ }catch(e){}
+ setTimeout(()=>requestAnimationFrame(scanFrame),90)
+}
+function stopScan(){scanning=false;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('video').pause();$('video').srcObject=null;$('video').style.display='none';$('scan').textContent='تشغيل الكاميرا ومسح QR'}
+$('exportCsv').onclick=()=>{
+ const s=current();if(!s){msg('ابدأ جلسة الحضور أولاً.','bad');return}
+ const presentMap=new Map(s.records.map(r=>[r.student_id,r]));
+ const rows=[['Student No','Student Name','Student ID','Course','Class Type','Date','Session','Attendance','Check-in Time']];
+ students.forEach(st=>{const r=presentMap.get(st.student_id);rows.push([st.number,st.name,st.student_id,s.course,s.kind,s.date,s.session,r?'Present':'Absent',r?r.time:''])});
+ download('\ufeff'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n'),`Attendance_${safe(s.course)}_${s.kind}_${s.date}.csv`,'text/csv;charset=utf-8');
+ msg('تم تصدير التقرير. افتح ملف CSV ببرنامج Excel.','ok')
+};
+$('exportAll').onclick=()=>download(JSON.stringify({version:1,students,sessions},null,2),'Attendance_Backup.json','application/json');
+$('importAll').onclick=()=>$('importFile').click();
+$('importFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d.sessions))throw Error();const map=new Map(sessions.map(s=>[s.key,s]));d.sessions.forEach(incoming=>{if(!map.has(incoming.key))map.set(incoming.key,incoming);else{const old=map.get(incoming.key), rec=new Map(old.records.map(r=>[r.student_id,r]));incoming.records.forEach(r=>{if(!rec.has(r.student_id))rec.set(r.student_id,r)});old.records=[...rec.values()]}});sessions=[...map.values()];save();activeKey=sessions.length?sessions[sessions.length-1].key:null;render();msg('تم استيراد ودمج النسخة الاحتياطية.','ok')}catch(err){msg('تعذر استيراد الملف. تأكد أنه نسخة احتياطية صحيحة.','bad')}e.target.value=''};
+$('exportRoster').onclick=()=>{const rows=[['Student No','Student Name','Student ID','QR Payload'],...students.map(s=>[s.number,s.name,s.student_id,s.qr])];download('\ufeff'+rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n'),'Student_Roster_QR.csv','text/csv;charset=utf-8')};
+$('clearSession').onclick=()=>{const s=current();if(!s){msg('لا توجد جلسة حالية.','bad');return}if(confirm('هل تريد حذف جميع سجلات هذه الجلسة؟ لا يمكن التراجع عن ذلك.')){s.records=[];save();render();msg('تم مسح سجلات الجلسة.')}};
+function safe(s){return String(s).replace(/[^a-z0-9_-]+/gi,'_')}
+function download(content,name,type){const a=document.createElement('a'),u=URL.createObjectURL(new Blob([content],{type}));a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)}
+render();
+if(!students.length)msg('ابدأ بتحميل قائمة الطلبة من ملف CSV. تُحفظ القائمة على هذا الجهاز فقط.');
+</script></body></html>
